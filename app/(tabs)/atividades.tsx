@@ -17,9 +17,11 @@ import { useDadosAtualizados } from "../../lib/sync";
 import type { EstadoTrilha } from "../../lib/trilha";
 import { CHAVE_BOAS_VINDAS, FASES, TEMAS } from "../../lib/trilhaConteudo";
 import { useAuth } from "../../state/auth";
+import { useDesktop } from "../../lib/desktop";
 
 export default function AtividadesScreen() {
   const router = useRouter();
+  const desktop = useDesktop();
   const [activeTab, setActiveTab] = useState("Trilha");
   const { aba } = useLocalSearchParams<{ aba?: string }>();
   const [estado, setEstado] = useState<EstadoTrilha | null>(null);
@@ -56,60 +58,82 @@ export default function AtividadesScreen() {
   const proxima = estado && !estado.concluida ? FASES[estado.faseAtual - 1] : null;
   const corProxima = proxima ? TEMAS[proxima.tema - 1] : null;
 
+  // Continuar de onde parou, com um toque
+  const continuar = proxima && corProxima && (
+    <TouchableOpacity
+      onPress={() => router.push({ pathname: "/trilha/[fase]", params: { fase: String(proxima.numero) } })}
+      activeOpacity={0.9}
+      style={{ backgroundColor: corProxima.cor, borderBottomWidth: 4, borderColor: corProxima.sombra }}
+      className="w-full max-w-2xl mx-auto rounded-2xl px-5 py-3.5 flex-row items-center"
+    >
+      <View className="bg-white/25 w-10 h-10 rounded-xl items-center justify-center">
+        <MaterialCommunityIcons name={corProxima.icone as any} size={22} color="#FFF" />
+      </View>
+      <View className="flex-1 ml-3">
+        <Text className="text-white/80 text-[11px] font-bold uppercase tracking-wider">
+          {Object.keys(estado!.fases[proxima.numero - 1].pontosPorCasa).length ? "Continuar" : "Começar"} · Fase{" "}
+          {proxima.numero}
+        </Text>
+        <Text className="text-white text-base font-extrabold" numberOfLines={1}>
+          {proxima.titulo}
+        </Text>
+      </View>
+      <Ionicons name="play" size={22} color="#FFF" />
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView className="flex-1 bg-fundo" edges={["top"]}>
-      {/* Barra de status: sempre visível, como no Duolingo */}
-      <View className="w-full max-w-2xl mx-auto px-6 pt-4 pb-2 flex-row items-center justify-between">
-        <Text className="text-2xl font-extrabold text-texto tracking-tight">Atividades</Text>
-        <View className="flex-row items-center">
-          <Status
-            icone="fire"
-            cor="#F97316"
-            valor={estado?.ofensiva.atual ?? 0}
-            rotulo="dias seguidos. Toque para ver o calendário"
-            onPress={estado ? () => setVerOfensiva(true) : undefined}
-          />
-          <Status icone="star" cor="#F5B301" valor={estado?.pontos ?? 0} rotulo="pontos" />
-          <Status icone="trophy" cor="#D97D54" valor={`${ganhas}/${totalConquistas}`} rotulo="conquistas" />
+      {/* Desktop: a trilha rola na coluna principal; "Continuar" e as conquistas ficam no painel à direita */}
+      <View className={desktop ? "flex-1 flex-row w-full max-w-5xl mx-auto" : "flex-1"}>
+        <View className="flex-1">
+          {/* Barra de status: sempre visível, como no Duolingo */}
+          <View className={`w-full mx-auto px-6 pt-4 pb-2 flex-row items-center justify-between ${desktop ? "" : "max-w-2xl"}`}>
+            <Text className="text-2xl font-extrabold text-texto tracking-tight">Atividades</Text>
+            <View className="flex-row items-center">
+              <Status
+                icone="fire"
+                cor="#F97316"
+                valor={estado?.ofensiva.atual ?? 0}
+                rotulo="dias seguidos. Toque para ver o calendário"
+                onPress={estado ? () => setVerOfensiva(true) : undefined}
+              />
+              <Status icone="star" cor="#F5B301" valor={estado?.pontos ?? 0} rotulo="pontos" />
+              <Status icone="trophy" cor="#D97D54" valor={`${ganhas}/${totalConquistas}`} rotulo="conquistas" />
+            </View>
+          </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingHorizontal: 24,
+              paddingTop: desktop ? 12 : 0,
+              paddingBottom: !desktop && continuar && activeTab === "Trilha" ? 120 : 40,
+            }}
+            className={desktop ? "" : "w-full max-w-2xl mx-auto"}
+          >
+            {!desktop && <TabSwitcher activeTab={activeTab} setActiveTab={setActiveTab} />}
+
+            {(desktop || activeTab === "Trilha") && estado && <TrilhaMapa estado={estado} recarregar={carregar} />}
+
+            {!desktop && activeTab === "Conquistas" && estado && <BadgesGrid conquistas={estado.conquistas} jornada={jornada} />}
+          </ScrollView>
         </View>
+
+        {desktop && (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={{ width: 380, flexGrow: 0, flexShrink: 0 }}
+            contentContainerStyle={{ paddingTop: 68, paddingRight: 24, paddingBottom: 40 }}
+          >
+            {continuar && <View className="mb-6">{continuar}</View>}
+            {estado && <BadgesGrid conquistas={estado.conquistas} jornada={jornada} />}
+          </ScrollView>
+        )}
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: proxima && activeTab === "Trilha" ? 120 : 40 }}
-        className="w-full max-w-2xl mx-auto"
-      >
-        <TabSwitcher activeTab={activeTab} setActiveTab={setActiveTab} />
-
-        {activeTab === "Trilha" && estado && <TrilhaMapa estado={estado} recarregar={carregar} />}
-
-        {activeTab === "Conquistas" && estado && <BadgesGrid conquistas={estado.conquistas} jornada={jornada} />}
-      </ScrollView>
-
-      {/* Continuar de onde parou, com um toque */}
-      {activeTab === "Trilha" && proxima && corProxima && (
-        <View className="absolute bottom-0 left-0 right-0 px-6 pb-4 pt-3 bg-fundo/95 border-t border-borda">
-          <TouchableOpacity
-            onPress={() => router.push({ pathname: "/trilha/[fase]", params: { fase: String(proxima.numero) } })}
-            activeOpacity={0.9}
-            style={{ backgroundColor: corProxima.cor, borderBottomWidth: 4, borderColor: corProxima.sombra }}
-            className="w-full max-w-2xl mx-auto rounded-2xl px-5 py-3.5 flex-row items-center"
-          >
-            <View className="bg-white/25 w-10 h-10 rounded-xl items-center justify-center">
-              <MaterialCommunityIcons name={corProxima.icone as any} size={22} color="#FFF" />
-            </View>
-            <View className="flex-1 ml-3">
-              <Text className="text-white/80 text-[11px] font-bold uppercase tracking-wider">
-                {Object.keys(estado!.fases[proxima.numero - 1].pontosPorCasa).length ? "Continuar" : "Começar"} · Fase{" "}
-                {proxima.numero}
-              </Text>
-              <Text className="text-white text-base font-extrabold" numberOfLines={1}>
-                {proxima.titulo}
-              </Text>
-            </View>
-            <Ionicons name="play" size={22} color="#FFF" />
-          </TouchableOpacity>
-        </View>
+      {!desktop && activeTab === "Trilha" && continuar && (
+        <View className="absolute bottom-0 left-0 right-0 px-6 pb-4 pt-3 bg-fundo/95 border-t border-borda">{continuar}</View>
       )}
       {estado && <OfensivaSheet visible={verOfensiva} onClose={() => setVerOfensiva(false)} ofensiva={estado.ofensiva} />}
     </SafeAreaView>

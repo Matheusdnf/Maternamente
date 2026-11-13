@@ -1,9 +1,10 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import React, { useEffect, useRef } from "react";
-import { Animated, Platform, View } from "react-native";
+import { Animated, Platform, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCores } from "../../lib/tema";
+import { useDesktop } from "../../lib/desktop";
 
 // Componente separado garante que hooks sejam usados corretamente (fora de callbacks)
 function AnimatedTabIcon({ focused, children }: { focused: boolean; children: React.ReactNode }) {
@@ -38,6 +39,7 @@ export default function TabsLayout() {
   const inactiveColor = cores.textoSuave;
   const tabBgColor = cores.cartao;
   const { bottom } = useSafeAreaInsets();
+  const desktop = useDesktop();
 
   return (
     <Tabs
@@ -45,22 +47,38 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: activeColor,
         tabBarInactiveTintColor: inactiveColor,
-        tabBarStyle: {
-          backgroundColor: tabBgColor,
-          borderTopWidth: 1,
-          borderTopColor: cores.borda,
-          height: 70 + bottom,
-          paddingBottom: 8 + bottom,
-          paddingTop: 8,
-          elevation: 0,
-          boxShadow: "none",
-        },
+        tabBarActiveBackgroundColor: desktop ? cores.pessego : undefined,
+        // Desktop (web larga): a mesma barra vira menu lateral, com o nome do app no topo
+        tabBarPosition: desktop ? "left" : "bottom",
+        tabBarLabelPosition: desktop ? "beside-icon" : "below-icon",
+        tabBarBackground: desktop
+          ? () => <Text style={{ color: activeColor, fontSize: 20, fontWeight: "800", padding: 24 }}>Maternamente</Text>
+          : undefined,
+        tabBarStyle: desktop
+          ? {
+              backgroundColor: tabBgColor,
+              borderRightWidth: 1,
+              borderRightColor: cores.borda,
+              paddingTop: 80,
+              width: 248,
+              minWidth: 248,
+              elevation: 0,
+              boxShadow: "none",
+            }
+          : {
+              backgroundColor: tabBgColor,
+              borderTopWidth: 1,
+              borderTopColor: cores.borda,
+              height: 70 + bottom,
+              paddingBottom: 8 + bottom,
+              paddingTop: 8,
+              elevation: 0,
+              boxShadow: "none",
+            },
         tabBarIconStyle: { width: 56, height: 28 },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: "500",
-          paddingBottom: 2,
-        },
+        tabBarLabelStyle: desktop
+          ? { fontSize: 15, fontWeight: "600" }
+          : { fontSize: 12, fontWeight: "500", paddingBottom: 2 },
       }}
     >
       {/* 1. Aba: Início */}

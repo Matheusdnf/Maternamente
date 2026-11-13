@@ -1,5 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ScrollView, Text, View, TouchableOpacity, ActivityIndicator, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../state/auth";
@@ -17,10 +18,18 @@ import { calcularSemanaAtual, getTrimestre, parseData } from "../../lib/gestacao
 import { buscarDesenvolvimento, listarConsultas, listarGestacoes } from "../../lib/dados";
 import { useDadosAtualizados } from "../../lib/sync";
 import { PregnancyStatus } from "../../types/pregnancy";
-import { useCores } from "../../lib/tema";
+import { definirTema, useCores } from "../../lib/tema";
+import { temas } from "../../constants/tema";
+import { useDesktop } from "../../lib/desktop";
+import { ArtigoCard } from "../../components/ArtigoCard";
+import { mockBlocksData } from "../../state/mockDashboardData";
 
 export default function DashboardScreen() {
   const cores = useCores();
+  const escuro = cores === temas.escuro;
+  const desktop = useDesktop();
+  const carrossel = useRef<ScrollView>(null);
+  const xCarrossel = useRef(0);
   const router = useRouter();
   const { user, selectedGestacao, setSelectedGestacao } = useAuth();
   const [desenvolvimento, setDesenvolvimento] = useState<any>(null);
@@ -30,6 +39,41 @@ export default function DashboardScreen() {
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
 
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
+
+  // Notificações vistas/apagadas ficam no aparelho, por usuário. A chave inclui o título:
+  // quando a consulta muda de situação ("Amanhã", "Hoje"), vira uma notificação nova.
+  const chaveNotif = (n: any) => `${n.id}:${n.title}`;
+  const storageNotif = `notificacoes:${user?.id}`;
+  const [vistas, setVistas] = useState<string[]>([]);
+  const [apagadas, setApagadas] = useState<string[]>([]);
+  // Vistas antes de abrir o menu agora: só essas ganham o botão de apagar (as novas mostram "NOVA")
+  const [vistasAoAbrir, setVistasAoAbrir] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    AsyncStorage.getItem(storageNotif)
+      .then((v) => {
+        const salvo = v ? JSON.parse(v) : {};
+        setVistas(salvo.vistas ?? []);
+        setApagadas(salvo.apagadas ?? []);
+      })
+      .catch(() => {});
+  }, [user?.id]);
+
+  const salvarNotif = (novasVistas: string[], novasApagadas: string[]) => {
+    setVistas(novasVistas);
+    setApagadas(novasApagadas);
+    AsyncStorage.setItem(storageNotif, JSON.stringify({ vistas: novasVistas, apagadas: novasApagadas })).catch(() => {});
+  };
+
+  const abrirNotificacoes = () => {
+    setVistasAoAbrir(vistas);
+    // Abriu o menu = viu todas as que estão na lista
+    salvarNotif([...new Set([...vistas, ...notificacoesVisiveis.map(chaveNotif)])], apagadas);
+    setIsNotificationModalVisible(true);
+  };
+
+  const apagarNotificacao = (n: any) => salvarNotif(vistas, [...apagadas, chaveNotif(n)]);
 
   // Derivado da gestação selecionada (mesma lógica de Minhas Gestações).
   // Se finalizada, data_finalizacao congela a contagem.
@@ -150,18 +194,20 @@ export default function DashboardScreen() {
     }
   };
 
-  const unreadCount = notificationsList.filter(n => n.isNew).length;
+  const notificacoesVisiveis = notificationsList.filter((n) => !apagadas.includes(chaveNotif(n)));
+  const unreadCount = notificacoesVisiveis.filter((n) => !vistas.includes(chaveNotif(n))).length;
 
   return (
     <SafeAreaView className="flex-1 bg-fundo items-center">
-      <View className="w-full max-w-xl flex-1 px-5">
+      <View className={`w-full flex-1 px-5 ${desktop ? "max-w-5xl" : "max-w-xl"}`}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingTop: 24, paddingBottom: 40 }}
         >
           {/* Cabeçalho de Boas-vindas e Notificações */}
           <View className="flex-row justify-between items-center mb-6">
-            <View>
+            {/* flex-1: com dois botões ao lado, a saudação quebra linha em vez de empurrá-los para fora */}
+            <View className="flex-1 mr-3">
               <Text className="text-sm font-medium text-texto-suave">
                 Olá,
               </Text>
@@ -169,8 +215,19 @@ export default function DashboardScreen() {
                 Bem-vindo(a), {user?.nome?.split(' ')[0] || "Usuário"}!
               </Text>
             </View>
-            <TouchableOpacity 
-              onPress={() => setIsNotificationModalVisible(true)}
+            <View className="flex-row items-center">
+            {/* Atalho do tema: mostra o modo para o qual vai trocar (Automático fica em Configurações) */}
+            <TouchableOpacity
+              onPress={() => definirTema(escuro ? "claro" : "escuro")}
+              accessibilityRole="button"
+              accessibilityLabel={escuro ? "Mudar para o modo claro" : "Mudar para o modo escuro"}
+              className="w-12 h-12 bg-cartao rounded-full items-center justify-center border border-borda shadow-sm mr-3"
+            >
+              <Ionicons name={escuro ? "sunny-outline" : "moon-outline"} size={22} color={cores.texto} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={abrirNotificacoes}
+              accessibilityLabel="Notificações"
               className="w-12 h-12 bg-cartao rounded-full items-center justify-center border border-borda shadow-sm relative"
             >
               {unreadCount > 0 && (
@@ -178,8 +235,13 @@ export default function DashboardScreen() {
               )}
               <Ionicons name="notifications-outline" size={22} color={cores.texto} />
             </TouchableOpacity>
+            </View>
           </View>
 
+          {/* Desktop: jornada e destaque lado a lado */}
+          <View className={desktop ? "flex-row items-stretch gap-6 mb-8" : ""}>
+          <View className={desktop ? "flex-1" : ""}>
+          {desktop && <Text className="text-xl font-bold text-texto tracking-tight mb-3">Sua gestação</Text>}
           {/* Card Principal Terracota (Configurado sem boxShadow em JS) */}
           {isLoadingDashboard ? (
             <JourneyCardSkeleton />
@@ -193,15 +255,14 @@ export default function DashboardScreen() {
             />
           )}
 
+          </View>
+
           {/* Destaque da Sua Semana */}
-          <View className="mt-8 mb-6 w-full">
+          <View className={desktop ? "flex-1" : "mt-8 mb-6 w-full"}>
             <View className="flex-row items-center justify-between mb-3">
               <Text className="text-xl font-bold text-texto tracking-tight">
                 Destaque da Semana
               </Text>
-              <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/artigos')}>
-                <Text className="text-sm font-bold text-[#D97D54]">Explorar Temas</Text>
-              </TouchableOpacity>
             </View>
 
             {isLoadingDashboard ? (
@@ -253,6 +314,7 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             )}
           </View>
+          </View>
 
           {/* Seção de Acesso Rápido */}
           <Text className="text-lg font-bold text-texto mb-3 w-full">
@@ -262,7 +324,7 @@ export default function DashboardScreen() {
           {isLoadingDashboard ? (
             <QuickAccessSkeleton />
           ) : (
-            <View className="flex-row flex-wrap justify-between items-start w-full">
+            <View className={desktop ? "flex-row gap-3 w-full" : "flex-row flex-wrap justify-between items-start w-full"}>
               <QuickAccessButton
                 title="Meu Diário"
                 subtitle="Registre seu dia"
@@ -301,6 +363,44 @@ export default function DashboardScreen() {
               />
             </View>
           )}
+
+          {/* Leituras por tema: carrossel. No desktop não há arrasto com o mouse, então as setas rolam */}
+          <View className="flex-row items-center justify-between mt-6 mb-3">
+            <Text className="text-lg font-bold text-texto">Explorar temas</Text>
+            <View className="flex-row items-center">
+              {desktop &&
+                ([-1, 1] as const).map((lado) => (
+                  <TouchableOpacity
+                    key={lado}
+                    onPress={() => {
+                      // 2 cards por clique (card de 256 + 16 de espaço)
+                      xCarrossel.current = Math.max(0, xCarrossel.current + lado * 544);
+                      carrossel.current?.scrollTo({ x: xCarrossel.current, animated: true });
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={lado < 0 ? "Temas anteriores" : "Próximos temas"}
+                    className="w-8 h-8 rounded-full bg-cartao border border-borda items-center justify-center mr-2"
+                  >
+                    <Ionicons name={lado < 0 ? "chevron-back" : "chevron-forward"} size={16} color={cores.texto} />
+                  </TouchableOpacity>
+                ))}
+              <TouchableOpacity activeOpacity={0.7} onPress={() => router.push("/artigos")} className="ml-1">
+                <Text className="text-sm font-bold text-[#D97D54]">Ver todos</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <ScrollView
+            ref={carrossel}
+            horizontal
+            nestedScrollEnabled
+            showsHorizontalScrollIndicator={false}
+            scrollEventThrottle={32}
+            onScroll={(e) => (xCarrossel.current = e.nativeEvent.contentOffset.x)}
+          >
+            {mockBlocksData.map((artigo) => (
+              <ArtigoCard key={artigo.id} artigo={artigo} mostrarTema />
+            ))}
+          </ScrollView>
         </ScrollView>
       </View>
 
@@ -310,12 +410,13 @@ export default function DashboardScreen() {
         onClose={() => setIsNotificationModalVisible(false)}
         title="Notificações"
       >
-        <View className="flex-1 pb-6" style={{ minHeight: 300, maxHeight: 500 }}>
+        {/* Altura fixa: com flex-1 num sheet de altura automática a lista ficava com altura 0 e vazava para fora da tela */}
+        <View className="pb-6" style={{ height: 420 }}>
           {isLoadingNotifications ? (
             <View className="flex-1 justify-center items-center">
               <ActivityIndicator size="small" color="#C56A43" />
             </View>
-          ) : notificationsList.length === 0 ? (
+          ) : notificacoesVisiveis.length === 0 ? (
             <View className="flex-1 justify-center items-center py-10">
               <Ionicons name="notifications-off-outline" size={40} color={cores.bordaForte} />
               <Text className="text-texto-suave mt-4 font-medium">
@@ -323,8 +424,10 @@ export default function DashboardScreen() {
               </Text>
             </View>
           ) : (
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {notificationsList.map((notif) => (
+            <ScrollView showsVerticalScrollIndicator nestedScrollEnabled>
+              {notificacoesVisiveis.map((notif) => {
+                const nova = !vistasAoAbrir.includes(chaveNotif(notif));
+                return (
                 <View 
                   key={notif.id}
                   className={`flex-row p-4 mb-3 rounded-2xl border ${notif.isNew ? 'bg-pessego border-pessego-borda' : 'bg-cartao border-borda-forte'}`}
@@ -341,10 +444,19 @@ export default function DashboardScreen() {
                       <Text className={`text-sm font-bold ${notif.isNew ? 'text-texto' : 'text-texto-suave'}`}>
                         {notif.title}
                       </Text>
-                      {notif.isNew && (
+                      {nova ? (
                         <View className="bg-[#C56A43] px-2 py-0.5 rounded-full">
                           <Text className="text-[10px] text-white font-bold">NOVA</Text>
                         </View>
+                      ) : (
+                        <TouchableOpacity
+                          onPress={() => apagarNotificacao(notif)}
+                          hitSlop={10}
+                          accessibilityLabel="Apagar notificação"
+                          className="w-7 h-7 rounded-full items-center justify-center bg-[#C56A43]"
+                        >
+                          <Ionicons name="checkmark" size={16} color="#FFF" />
+                        </TouchableOpacity>
                       )}
                     </View>
                     <Text className={`text-xs ${notif.isNew ? 'text-texto' : 'text-texto-suave'}`}>
@@ -355,7 +467,8 @@ export default function DashboardScreen() {
                     </Text>
                   </View>
                 </View>
-              ))}
+                );
+              })}
             </ScrollView>
           )}
         </View>

@@ -4,6 +4,7 @@ import { TouchableOpacity, View, Text } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ProfileMenuOption } from "../../types/profile";
 import { useCores } from "../../lib/tema";
+import { useDesktop } from "../../lib/desktop";
 
 export const ProfileMenuOptions = React.memo(function ProfileMenuOptions({
   title,
@@ -15,10 +16,16 @@ export const ProfileMenuOptions = React.memo(function ProfileMenuOptions({
   perigo,
 }: ProfileMenuOption) {
   const cores = useCores();
+  const desktop = useDesktop();
   const router = useRouter();
   return (
     <TouchableOpacity
-      className="flex-row items-center justify-between py-4 border-b border-borda/70 w-full"
+      className={
+        desktop
+          ? "flex-row items-center justify-between p-4 bg-cartao border border-borda rounded-2xl"
+          : "flex-row items-center justify-between py-4 border-b border-borda/70 w-full"
+      }
+      style={desktop ? { width: "32%" } : undefined}
       activeOpacity={0.7}
       onPress={() => {
         if (onPress) return onPress();
@@ -32,16 +39,16 @@ export const ProfileMenuOptions = React.memo(function ProfileMenuOptions({
           router.push("/respiracao" as any);
         } else if (title === "Minhas Conquistas") {
           router.push({ pathname: "/atividades", params: { aba: "Conquistas" } } as any);
-        } else if (title === "Configurações") {
-          router.push("/configuracoes" as any);
+        } else if (title === "Biblioteca Temática") {
+          router.push("/artigos" as any);
         }
       }}
     >
-      <View className="flex-row items-center">
+      <View className={desktop ? "flex-row items-center flex-1" : "flex-row items-center"}>
         <View className={`${bgColor} w-10 h-10 rounded-2xl items-center justify-center mr-3`}>
           <MaterialCommunityIcons name={iconName as any} size={20} color={iconColor} />
         </View>
-        <View>
+        <View className={desktop ? "flex-1" : ""}>
           <Text className={`text-[15px] font-bold ${perigo ? "text-red-500" : "text-texto"}`}>{title}</Text>
           <Text className="text-xs text-texto-suave mt-0.5">{subtitle}</Text>
         </View>

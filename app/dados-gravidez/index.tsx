@@ -168,7 +168,7 @@ export default function DadosGravidezScreen() {
       {/* Decoração orgânica fundo */}
       <View className="absolute top-[-40px] right-[-40px] w-48 h-48 rounded-full bg-areia opacity-70 pointer-events-none" />
 
-      <View className="w-full max-w-xl flex-1 px-6 overflow-hidden">
+      <View className="w-full max-w-xl lg:max-w-2xl flex-1 px-6 overflow-hidden">
         <ScrollView
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
@@ -457,6 +457,7 @@ export default function DadosGravidezScreen() {
 
       {/* Modal de Edição */}
       <BottomSheetModal
+        semModal
         visible={editModalVisible}
         onClose={() => setEditModalVisible(false)}
         title="Editar Gestação"

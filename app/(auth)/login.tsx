@@ -65,7 +65,7 @@ export default function LoginScreen() {
         className="flex-1 w-full"
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <View className="w-full max-w-xl flex-1 px-6 self-center">
+        <View className="w-full max-w-xl lg:max-w-2xl flex-1 px-6 self-center">
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingTop: 48, paddingBottom: 40 }}

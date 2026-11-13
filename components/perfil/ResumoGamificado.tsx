@@ -7,6 +7,7 @@ import { MARCOS, TOTAL_SEMANAS } from "../../lib/jornada";
 import { useDadosAtualizados } from "../../lib/sync";
 import type { EstadoTrilha } from "../../lib/trilha";
 import { useAuth } from "../../state/auth";
+import { useDesktop } from "../../lib/desktop";
 
 // Placar do perfil, como no Duolingo: cada card leva à tela onde aquele número cresce
 export function ResumoGamificado() {
@@ -60,8 +61,9 @@ function Card({
   rotulo: string;
   onPress: () => void;
 }) {
+  const desktop = useDesktop(); // os quatro numa linha
   return (
-    <View style={{ width: "50%", padding: 5 }}>
+    <View style={{ width: desktop ? "25%" : "50%", padding: 5 }}>
       <TouchableOpacity
         onPress={onPress}
         activeOpacity={0.85}

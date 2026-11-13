@@ -24,6 +24,7 @@ import { useDadosAtualizados } from "../../lib/sync";
 import { hojeISO, isoParaBR, parseData } from "../../lib/gestacao";
 import { BackButton } from "../../components/BackButton";
 import { useCores } from "../../lib/tema";
+import { aoMudarAlerta } from "../../lib/alerta";
 import { LIMITES, validarConsulta } from '../../lib/validacao';
 
 // Fora do componente: se fosse criado dentro, seria um tipo novo a cada render
@@ -48,7 +49,13 @@ export default function ConsultasScreen() {
   const [dialogAndroidAberto, setDialogAndroidAberto] = useState(false);
   // Um modal por vez: calendário/relógio abertos por cima do formulário travam no Android,
   // então o formulário some enquanto o seletor está aberto (os campos ficam no estado da tela).
-  const formEscondido = isCalendarVisible || showTimePicker || dialogAndroidAberto;
+  // O mesmo vale para os alertas (AlertaHost também é um Modal)
+  // (só fora do Android: lá o formulário é desenhado na própria tela, sem Modal — ver semModal)
+  const [alertaAberto, setAlertaAberto] = useState(false);
+  // Erros do formulário aparecem dentro dele (sem alerta), para o formulário não sumir e voltar
+  const [erroForm, setErroForm] = useState("");
+  useEffect(() => aoMudarAlerta((a) => setAlertaAberto(!!a)), []);
+  const formEscondido = isCalendarVisible || showTimePicker || dialogAndroidAberto || (alertaAberto && Platform.OS !== "android");
 
   const isWeb = Platform.OS === 'web';
   const todayISO = hojeISO();
@@ -114,6 +121,7 @@ export default function ConsultasScreen() {
     setMedico("");
     setLocal("");
     setSelectedAppointmentId(null);
+    setErroForm("");
   };
 
   // Android: o componente <DateTimePicker> reabre o diálogo a cada render (value={new Date()} muda sempre),
@@ -152,11 +160,8 @@ export default function ConsultasScreen() {
       medico: medico.trim(),
     };
     const erro = validarConsulta(form);
-    if (erro) {
-      Alert.alert("Atenção", erro);
-      return null;
-    }
-    return form;
+    setErroForm(erro ?? "");
+    return erro ? null : form;
   };
 
   const handleEditarConsulta = async () => {
@@ -167,12 +172,12 @@ export default function ConsultasScreen() {
     try {
       await atualizarConsulta(selectedAppointmentId!, form);
 
-      Alert.alert("Sucesso", "Consulta atualizada com sucesso!");
       resetForm();
       setIsEditModalVisible(false);
+      Alert.alert("Sucesso", "Consulta atualizada com sucesso!");
       fetchConsultas();
     } catch (error: any) {
-      Alert.alert("Erro", error.message);
+      setErroForm(error.message);
     } finally {
       setIsLoading(false);
     }
@@ -216,6 +221,9 @@ export default function ConsultasScreen() {
     try {
       await criarConsulta(selectedGestacao?.id_gestacao, form);
 
+      // Fecha o formulário antes do alerta e do pedido de permissão do calendário
+      resetForm();
+      setIsModalVisible(false);
       Alert.alert("Sucesso", "Consulta agendada com sucesso!");
       
       // --- Calendário do aparelho ---
@@ -237,7 +245,7 @@ export default function ConsultasScreen() {
             appointmentDate,             // Inicio
             appointmentEndDate,          // Fim (1h depois)
             form.local, // Local
-            `Médico(a): ${medico.trim() || "Não informado"}\nAgendado pelo app Gravidinha.` // Notas
+            `Médico(a): ${medico.trim() || "Não informado"}\nAgendado pelo app Maternamente.` // Notas
           );
         } catch (calErr) {
           console.log("Erro ao salvar no calendário silencioso:", calErr);
@@ -246,11 +254,9 @@ export default function ConsultasScreen() {
         console.error("Erro ao agendar no calendário:", e);
       }
 
-      resetForm();
-      setIsModalVisible(false);
       fetchConsultas(); // recarrega a lista
     } catch (error: any) {
-      Alert.alert("Erro", error.message);
+      setErroForm(error.message);
     } finally {
       setIsLoading(false);
     }
@@ -348,12 +354,17 @@ export default function ConsultasScreen() {
         />
       </View>
 
+      {!!erroForm && (
+        <Text className="text-red-500 text-sm font-bold mb-4" accessibilityRole="alert">
+          {erroForm}
+        </Text>
+      )}
     </>
   );
 
   return (
     <SafeAreaView className="flex-1 bg-fundo items-center overflow-hidden">
-      <View className="w-full max-w-xl flex-1 px-5 relative overflow-hidden">
+      <View className="w-full max-w-xl lg:max-w-2xl flex-1 px-5 relative overflow-hidden">
         {/* Círculo Orgânico Decorativo */}
         <View className="absolute top-[-40px] right-[-20px] w-48 h-48 rounded-full bg-areia opacity-70 pointer-events-none" />
         <ScrollView
@@ -486,12 +497,13 @@ export default function ConsultasScreen() {
 
       {/* MODAL DE NOVA CONSULTA */}
       <BottomSheetModal
+        semModal
         visible={isModalVisible && !formEscondido}
         animationType={formEscondido ? "none" : "fade"}
-        onClose={() => setIsModalVisible(false)}
+        onClose={() => { setIsModalVisible(false); setErroForm(""); }}
         title="Adicionar Consulta"
       >
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {camposDoForm}
 
           <TouchableOpacity
@@ -513,6 +525,7 @@ export default function ConsultasScreen() {
 
       {/* MODAL DE EDITAR CONSULTA */}
       <BottomSheetModal
+        semModal
         visible={isEditModalVisible && !formEscondido}
         animationType={formEscondido ? "none" : "fade"}
         onClose={() => {
@@ -521,7 +534,7 @@ export default function ConsultasScreen() {
         }}
         title="Editar Consulta"
       >
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {camposDoForm}
 
           <View className="flex-row justify-between mb-4">

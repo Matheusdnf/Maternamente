@@ -61,8 +61,9 @@ function RootLayoutNav() {
   return (
     <Stack screenOptions={{
       headerShown: false,
-      // Animações do iOS quebram no Expo Go Android — no iOS usa a animação nativa padrão
-      animation: Platform.OS === 'android' ? 'fade_from_bottom' : 'default',
+      // Animação nativa padrão de cada plataforma. "fade_from_bottom" no Android deixava a tela
+      // de baixo sem desenhar ao voltar (tela preta), e "ios_*" quebra no Android.
+      animation: 'default',
       animationDuration: 250,
       contentStyle: { backgroundColor: cores.fundo },
     }}>

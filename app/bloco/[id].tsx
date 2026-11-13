@@ -23,7 +23,7 @@ export default function DetalhesBlocoScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-fundo items-center">
-      <View className="w-full max-w-xl flex-1">
+      <View className="w-full max-w-xl lg:max-w-2xl flex-1">
         {/* Barra de Topo Dinâmica */}
         <View className="flex-row items-center justify-between px-5 py-4 border-b border-borda bg-cartao">
           <TouchableOpacity onPress={() => router.back()} className="p-1">
@@ -44,7 +44,7 @@ export default function DetalhesBlocoScreen() {
         <ScrollView showsVerticalScrollIndicator={false} className="px-5 pt-4">
           {/* Imagem de Destaque */}
           <Image
-            source={{ uri: blocoInfo.imageUrl }}
+            source={blocoInfo.image}
             className="w-full h-52 bg-borda-forte rounded-3xl mb-5"
           />
 

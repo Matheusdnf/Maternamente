@@ -27,10 +27,14 @@ import { StatusSync } from "../../components/perfil/StatusSync";
 // Mocks Isolados
 import { MENU_PERFIL } from "../../constants/menuPerfil";
 import { useCores } from "../../lib/tema";
+import { useDesktop } from "../../lib/desktop";
 import { LIMITES, validarCelular, validarNomePessoa } from "../../lib/validacao";
 
 export default function PerfilScreen() {
   const cores = useCores();
+  const desktop = useDesktop();
+  // Celular: um cartão com as opções em lista. Desktop: grade, cada opção é o seu próprio cartão.
+  const grupo = desktop ? "flex-row flex-wrap gap-3 w-full mb-8" : "bg-cartao border border-borda rounded-[28px] px-5 py-2 w-full mb-6";
   const { user, signIn, signOut, excluirConta } = useAuth();
 
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -149,10 +153,10 @@ export default function PerfilScreen() {
           paddingTop: 24,
           paddingBottom: 40,
         }}
-        className="w-full max-w-2xl mx-auto"
+        className={`w-full mx-auto ${desktop ? "max-w-5xl" : "max-w-2xl"}`}
       >
         {/* 1. TOPO: Bloco com Avatar, Nome e Conteúdo Offline */}
-        <View className="flex-row items-center justify-between w-full mb-2">
+        <View className={`flex-row items-center justify-between w-full mb-2 ${desktop ? "max-w-lg" : ""}`}>
           <View className="flex-row items-center flex-1">
             {/* Avatar com ícone de câmera sobreposto */}
             <View style={{ position: 'relative' }}>
@@ -222,7 +226,7 @@ export default function PerfilScreen() {
         <Text className="text-xs font-extrabold text-texto-suave tracking-wider uppercase mb-2">
           Minha Gestação
         </Text>
-        <View className="bg-cartao border border-borda rounded-[28px] px-5 py-2 w-full mb-6">
+        <View className={grupo}>
           {MENU_PERFIL.map((option) => (
             <ProfileMenuOptions
               key={option.id}
@@ -239,7 +243,7 @@ export default function PerfilScreen() {
         <Text className="text-xs font-extrabold text-texto-suave tracking-wider uppercase mb-2">
           Suporte
         </Text>
-        <View className="bg-cartao border border-borda rounded-[28px] px-5 py-2 w-full mb-6">
+        <View className={grupo}>
           <ProfileMenuOptions
             id="ajuda"
             title="Precisa de ajuda?"
@@ -263,15 +267,7 @@ export default function PerfilScreen() {
         <Text className="text-xs font-extrabold text-texto-suave tracking-wider uppercase mb-2">
           Conta
         </Text>
-        <View className="bg-cartao border border-borda rounded-[28px] px-5 py-2 w-full mb-6">
-          <ProfileMenuOptions
-            id="configuracoes"
-            title="Configurações"
-            subtitle="Aparência do app"
-            iconName="cog-outline"
-            iconColor="#78716C"
-            bgColor="bg-creme"
-          />
+        <View className={grupo}>
           <ProfileMenuOptions
             id="excluir"
             title={excluindo ? "Excluindo conta..." : "Excluir conta"}
@@ -286,7 +282,7 @@ export default function PerfilScreen() {
 
         {/* Botão Sair */}
         <TouchableOpacity
-          className="bg-vermelho border border-vermelho-borda rounded-2xl py-4 flex-row items-center justify-center w-full shadow-sm"
+          className={`bg-vermelho border border-vermelho-borda rounded-2xl py-4 flex-row items-center justify-center shadow-sm ${desktop ? "self-start px-8" : "w-full"}`}
           activeOpacity={0.7}
           // O _layout leva para o login quando a sessão acaba (signOut pode ser cancelado)
           onPress={signOut}
@@ -326,6 +322,7 @@ export default function PerfilScreen() {
 
       {/* ================= MODAL DE EDITAR PERFIL ================= */}
       <BottomSheetModal
+        semModal
         visible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
         title="Editar Perfil"

@@ -119,7 +119,7 @@ export default function DiarioScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-fundo items-center">
-      <View className="w-full max-w-xl flex-1 px-5 relative overflow-hidden">
+      <View className="w-full max-w-xl lg:max-w-2xl flex-1 px-5 relative overflow-hidden">
         {/* Círculo Orgânico Decorativo */}
         <View className="absolute top-[-40px] right-[-20px] w-48 h-48 rounded-full bg-areia opacity-70 pointer-events-none" />
         <ScrollView

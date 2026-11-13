@@ -19,6 +19,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
 import * as Haptics from "expo-haptics";
 import { useCores } from "../../lib/tema";
+import { useDesktop } from "../../lib/desktop";
 
 // Preferências do aparelho: voz e música ligam/desligam cada uma por conta própria
 const CHAVE_VOZ = "gravidinha_respiracao_voz";
@@ -26,6 +27,7 @@ const CHAVE_MUSICA = "gravidinha_respiracao_musica";
 
 export default function RespiracaoScreen() {
   const cores = useCores();
+  const desktop = useDesktop();
   const router = useRouter();
   
   // Estados do temporizador e fluxo
@@ -201,7 +203,8 @@ export default function RespiracaoScreen() {
       if (timerRef.current) clearInterval(timerRef.current);
       if ((timerRef as any).animInterval) clearInterval((timerRef as any).animInterval);
       timeoutsRef.current.forEach(clearTimeout);
-      calarVoz();
+      // Sem calarVoz() aqui: o useAudioPlayer já liberou os players ao desmontar, e pausar um player
+      // liberado lança erro que derruba a árvore do app (tela preta ao voltar). Liberar já para o som.
       cancelAnimation(scale);
       cancelAnimation(opacity);
     };
@@ -222,14 +225,15 @@ export default function RespiracaoScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-fundo items-center">
-      <View className="w-full max-w-xl flex-1 px-5 relative overflow-hidden">
+      {/* Desktop: ocupa a janela toda (os círculos de fundo não são cortados pela coluna) */}
+      <View className={`w-full flex-1 relative overflow-hidden ${desktop ? "px-10" : "max-w-xl px-5"}`}>
         
         {/* Círculo Orgânico Decorativo - Fundo da Tela */}
         <View className="absolute top-[-80px] right-[-60px] w-64 h-64 rounded-full bg-areia opacity-50 pointer-events-none" />
         <View className="absolute bottom-[-100px] left-[-60px] w-80 h-80 rounded-full bg-borda-forte opacity-30 pointer-events-none" />
 
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)"))}
           className="flex-row items-center mt-4 mb-4 z-20"
           activeOpacity={0.7}
         >
@@ -239,7 +243,12 @@ export default function RespiracaoScreen() {
           </Text>
         </TouchableOpacity>
 
-        <View className="flex-1 items-center justify-center relative mt-4">
+        {/* Desktop: círculo à esquerda, maior; textos e controles num painel à direita */}
+        <View className={desktop ? "flex-1 flex-row items-center w-full max-w-5xl self-center" : "flex-1"}>
+        <View
+          className={`flex-1 items-center justify-center relative mt-4 ${desktop ? "self-stretch" : ""}`}
+          style={desktop ? { transform: [{ scale: 1.35 }] } : undefined}
+        >
           
           {/* Anel Externo (Guia visual do tamanho máximo) */}
           <View className="absolute w-[280px] h-[280px] rounded-full border-[2px] border-[#D97D54]/20" />
@@ -271,6 +280,7 @@ export default function RespiracaoScreen() {
           </View>
         </View>
 
+        <View style={desktop ? { width: 400, marginLeft: 48 } : undefined}>
         {/* Textos Informativos Abaixo da Animação */}
         <View className="h-32 items-center justify-start mt-8 z-20">
            <Text className={`text-3xl font-extrabold text-center tracking-tight ${isActive ? 'text-[#D97D54]' : 'text-texto'}`}>
@@ -287,8 +297,9 @@ export default function RespiracaoScreen() {
         </View>
 
         {/* Opções de Tempo */}
-        {!isActive && (
-          <View className="mb-6 w-full z-20">
+        {/* Desktop: fica no lugar (invisível) durante o exercício, para o painel não pular */}
+        {(!isActive || desktop) && (
+          <View className="mb-6 w-full z-20" style={isActive ? { opacity: 0, pointerEvents: "none" } : undefined}>
             <Text className="text-xs font-bold text-marrom mb-3 text-center uppercase tracking-widest">
               Escolha a Duração
             </Text>
@@ -355,6 +366,8 @@ export default function RespiracaoScreen() {
             {isActive ? "Parar Exercício" : "Iniciar Respiração"}
           </Text>
         </TouchableOpacity>
+        </View>
+        </View>
       </View>
     </SafeAreaView>
   );

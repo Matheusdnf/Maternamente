@@ -45,7 +45,7 @@ export default function GestacaoScreen() {
       {/* Círculo Orgânico Decorativo no Canto Superior Direito */}
       <View className="absolute top-[-40px] right-[-40px] w-48 h-48 rounded-full bg-areia opacity-70 pointer-events-none" />
 
-      <View className="w-full max-w-xl flex-1 px-6">
+      <View className="w-full max-w-xl lg:max-w-2xl flex-1 px-6">
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingTop: 16, paddingBottom: 40 }}
