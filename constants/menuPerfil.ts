@@ -40,4 +40,12 @@ export const MENU_PERFIL: ProfileMenuOption[] = [
     iconColor: "#6366F1",
     bgColor: "bg-azul",
   },
+  {
+    id: "6",
+    title: "Biblioteca Temática",
+    subtitle: "Leituras por tema",
+    iconName: "book-open-page-variant-outline",
+    iconColor: "#C56A43",
+    bgColor: "bg-creme",
+  },
 ];

@@ -6,6 +6,8 @@ export interface BottomSheetModalProps {
   title: string;
   children: ReactNode;
   animationType?: "slide" | "fade" | "none";
+  /** Android: desenha na própria tela em vez de Modal (o teclado é tratado pelo sistema, sem piscar) */
+  semModal?: boolean;
 }
 
 export interface CalendarModalProps {
