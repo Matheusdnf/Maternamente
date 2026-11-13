@@ -159,6 +159,9 @@ export async function salvarDoServidor(t: Tabela, linha: Record<string, any>): P
 export const agora = () => new Date().toISOString();
 export const novoId = () => Crypto.randomUUID();
 
+// Foto de perfil (JPEG em base64) escolhida e ainda não enviada ao Storage
+export const FOTO_PENDENTE = 'foto_pendente';
+
 export async function lerMeta(chave: string): Promise<string | null> {
   return (await db.getFirstAsync<{ valor: string }>('SELECT valor FROM meta WHERE chave = ?', chave))?.valor ?? null;
 }

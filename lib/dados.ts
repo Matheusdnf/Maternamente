@@ -7,7 +7,7 @@
 import { supabase } from './supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import { db, tabela, salvarLocal, agora, novoId, lerMeta, type Tabela } from './db';
+import { db, tabela, salvarLocal, agora, novoId, lerMeta, gravarMeta, FOTO_PENDENTE, type Tabela } from './db';
 import { prepararBancoLocal, marcarAlterado } from './sync';
 import { normalizarHorario } from './syncRegras';
 import { calcularSemanaAtual, hojeISO, paraISO } from './gestacao';
@@ -87,6 +87,7 @@ export async function buscarUsuario(): Promise<User & { profile_image: string | 
   const { data } = await supabase.auth.getSession();
   const u = await db.getFirstAsync<Record<string, any>>('SELECT * FROM usuario WHERE id_user = ?', await meuId());
   if (!u) throw new Error('Erro ao carregar o perfil.');
+  const fotoPendente = await lerMeta(FOTO_PENDENTE);
   // Sessão vencida offline: e-mail do usuário guardado no login
   const email = data.session?.user.email ?? JSON.parse((await AsyncStorage.getItem('gravidinha_user')) ?? '{}').email ?? '';
   return {
@@ -94,7 +95,7 @@ export async function buscarUsuario(): Promise<User & { profile_image: string | 
     nome: u.name,
     email,
     celular: String(u.cellphone),
-    profile_image: u.profile_image,
+    profile_image: fotoPendente ? fotoLocal(fotoPendente) : u.profile_image,
     data_nascimento: u.data_nascimento,
   };
 }
@@ -119,6 +120,7 @@ export async function entrar(email: string, senha: string) {
   exigir(v.validarEmail(email), !senha || senha.length > v.LIMITES.senha.max ? 'Senha inválida.' : null);
   const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password: senha });
   if (error) {
+    if (error.name === 'AuthRetryableFetchError') throw new Error('Você precisa estar com o Wi-Fi ligado para entrar na sua conta.');
     // Mesma mensagem para e-mail inexistente e senha errada, para não revelar quais e-mails existem
     if (error.code === 'invalid_credentials') throw new Error('E-mail ou senha incorretos');
     if (error.code === 'email_not_confirmed') throw new Error('Confirme seu e-mail antes de entrar.');
@@ -157,7 +159,8 @@ export async function excluirContaNoServidor() {
   const { error } = await supabase.functions.invoke('excluir-conta', { method: 'POST' });
   if (error) {
     console.error(error);
-    throw new Error('Não foi possível excluir a conta. Verifique sua conexão e tente novamente.');
+    if (error.name === 'FunctionsFetchError') throw new Error('Você precisa estar com o Wi-Fi ligado para excluir a sua conta.');
+    throw new Error('Não foi possível excluir a conta. Tente novamente.');
   }
 }
 
@@ -178,23 +181,19 @@ export async function atualizarUsuario(d: { nome?: string; celular?: string; pro
   marcarAlterado();
 }
 
-// Comprime a foto (512px de largura, JPEG 70%: algumas dezenas de KB), envia ao Storage (precisa de
-// internet) e grava a URL pública no perfil.
-// Caminho fixo por usuária: a troca sobrescreve a anterior; o ?v= fura o cache da imagem antiga.
+// Comprime a foto (512px de largura, JPEG 70%: algumas dezenas de KB) e guarda no banco local
+// como pendente; lib/sync.ts envia ao Storage quando houver internet e grava a URL no perfil.
+// Devolve a foto local para a tela mostrar na hora.
 export async function salvarFotoPerfil(uri: string): Promise<string> {
-  const caminho = `${await meuId()}/avatar`;
   const imagem = await ImageManipulator.manipulate(uri).resize({ width: 512 }).renderAsync();
-  const comprimida = await imagem.saveAsync({ compress: 0.7, format: SaveFormat.JPEG });
-  const arquivo = await fetch(comprimida.uri).then((r) => r.arrayBuffer());
-  const { error } = await supabase.storage.from('avatars').upload(caminho, arquivo, { contentType: 'image/jpeg', upsert: true });
-  if (error) {
-    console.error(error);
-    throw new Error('Não foi possível enviar a foto. Verifique sua conexão.');
-  }
-  const url = `${supabase.storage.from('avatars').getPublicUrl(caminho).data.publicUrl}?v=${Date.now()}`;
-  await atualizarUsuario({ profile_image: url });
-  return url;
+  const { base64 } = await imagem.saveAsync({ compress: 0.7, format: SaveFormat.JPEG, base64: true });
+  if (!base64) throw new Error('Não foi possível processar a foto.');
+  await gravarMeta(FOTO_PENDENTE, base64);
+  marcarAlterado();
+  return fotoLocal(base64);
 }
+
+const fotoLocal = (base64: string) => `data:image/jpeg;base64,${base64}`;
 
 // ---------------------------------------------------------------------------
 // Gestação

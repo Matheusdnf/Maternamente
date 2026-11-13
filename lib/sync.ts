@@ -4,7 +4,7 @@
 import { useEffect, useRef } from 'react';
 import { AppState, Platform } from 'react-native';
 import { supabase } from './supabase';
-import { db, TABELAS, type Tabela, paraLocal, paraRemoto, salvarLocal, salvarDoServidor, lerMeta, gravarMeta } from './db';
+import { db, TABELAS, type Tabela, paraLocal, paraRemoto, salvarLocal, salvarDoServidor, lerMeta, gravarMeta, agora, FOTO_PENDENTE } from './db';
 import { classificarErro, deveAplicar, linhaMudou } from './syncRegras';
 
 // Motivo exibido para cada código de rejeição (CODIGOS_REJEICAO em syncRegras.ts)
@@ -78,6 +78,7 @@ async function ciclo() {
   if (!data.session) return;
 
   const avisos: string[] = [];
+  await enviarFoto(data.session.user.id); // antes do push: a URL nova do perfil já sobe neste ciclo
   await push(avisos);
   // Pull mesmo se o push parou: linhas pendentes não são sobrescritas (sem internet, o pull só falha)
   const mudou = (await pull()) || avisos.length > 0; // rejeição trocou a linha local pela do servidor
@@ -120,6 +121,22 @@ async function push(avisos: string[]) {
       );
     }
   }
+}
+
+// Foto escolhida offline: sobe ao Storage e grava a URL no perfil local (pendente, vai no push).
+// Caminho fixo por usuária: a troca sobrescreve a anterior; o ?v= fura o cache da imagem antiga.
+// Falhou (sem internet ou outro erro): continua pendente e tenta no próximo ciclo.
+async function enviarFoto(id_user: string) {
+  const base64 = await lerMeta(FOTO_PENDENTE);
+  if (!base64) return;
+  const caminho = `${id_user}/avatar`;
+  const arquivo = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const { error } = await supabase.storage.from('avatars').upload(caminho, arquivo, { contentType: 'image/jpeg', upsert: true });
+  if (error) return console.error(error);
+  const url = `${supabase.storage.from('avatars').getPublicUrl(caminho).data.publicUrl}?v=${Date.now()}`;
+  await db.runAsync('UPDATE usuario SET profile_image = ?, updated_at = ?, pendente = 1 WHERE id_user = ?', url, agora(), id_user);
+  // Só sai da fila se não trocaram de foto durante o envio
+  await db.runAsync('DELETE FROM meta WHERE chave = ? AND valor = ?', FOTO_PENDENTE, base64);
 }
 
 // O servidor venceu: fica a versão dele (ou some, se ele não tem a linha)
@@ -176,7 +193,7 @@ async function buscarNovidades(t: Tabela): Promise<Record<string, any>[]> {
 }
 
 export async function contarPendentes(): Promise<number> {
-  let soma = 0;
+  let soma = (await lerMeta(FOTO_PENDENTE)) ? 1 : 0;
   for (const t of TABELAS) {
     soma += (await db.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM ${t.nome} WHERE pendente = 1`))?.n ?? 0;
   }

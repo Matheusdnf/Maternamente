@@ -8,8 +8,7 @@ export const mockBlocksData: ContentArticle[] = [
     description:
       "O que comer para apoiar o desenvolvimento do bebê nos primeiros meses.",
     readingTime: "5 min de leitura",
-    imageUrl:
-      "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=500",
+    image: require("../assets/images/artigos/1.jpg"),
   },
   {
     id: "2",
@@ -18,8 +17,7 @@ export const mockBlocksData: ContentArticle[] = [
     description:
       "Movimentos suaves e alongamentos ideais para o primeiro trimestre.",
     readingTime: "8 min de leitura",
-    imageUrl:
-      "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=500",
+    image: require("../assets/images/artigos/2.jpg"),
   },
   {
     id: "3",
@@ -28,8 +26,7 @@ export const mockBlocksData: ContentArticle[] = [
     description:
       "Técnicas de respiração e relaxamento para lidar com as mudanças hormonais.",
     readingTime: "6 min de leitura",
-    imageUrl:
-      "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=500",
+    image: require("../assets/images/artigos/3.jpg"),
   },
   {
     id: "4",
@@ -38,8 +35,7 @@ export const mockBlocksData: ContentArticle[] = [
     description:
       "Uma rotina leve de 5 minutos para aliviar dores nas costas ao acordar.",
     readingTime: "4 min de leitura",
-    imageUrl:
-      "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=500",
+    image: require("../assets/images/artigos/4.jpg"),
   },
   {
     id: "5",
@@ -48,7 +44,6 @@ export const mockBlocksData: ContentArticle[] = [
     description:
       "Refeições saborosas para prevenir a anemia durante a gestação.",
     readingTime: "7 min de leitura",
-    imageUrl:
-      "https://images.unsplash.com/photo-1498837167332-2d1b1114b7e8?w=500",
+    image: require("../assets/images/artigos/1.jpg"), // a original do Unsplash saiu do ar (404)
   }
 ];

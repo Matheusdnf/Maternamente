@@ -25,10 +25,6 @@ function aplicar() {
 }
 midia?.addEventListener("change", () => preferencia === "sistema" && aplicar());
 
-export function preferenciaTema() {
-  return preferencia;
-}
-
 export function definirTema(p: PreferenciaTema) {
   preferencia = p;
   aplicar();
