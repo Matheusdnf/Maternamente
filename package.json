@@ -53,5 +53,10 @@
     "postinstall": "patch-package",
     "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --import ./lib/testes/registrar.mjs --test lib/testes/*.test.mjs"
   },
-  "private": true
+  "private": true,
+  "packageManager": "npm@11.19.1",
+  "engines": {
+    "node": "24.22.0",
+    "npm": "11.19.1"
+  }
 }
