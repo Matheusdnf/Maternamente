@@ -1,7 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import React, { useEffect, useRef } from "react";
-import { Animated, Platform, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, Platform, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCores } from "../../lib/tema";
 import { useDesktop } from "../../lib/desktop";
@@ -33,6 +33,71 @@ function AnimatedTabIcon({ focused, children }: { focused: boolean; children: Re
   );
 }
 
+// Menu lateral da web: ícones + rótulos, ou só ícones quando recolhido. O botão fica no rodapé.
+function MenuLateral({ state, descriptors, navigation, recolhido, alternar }: any) {
+  const cores = useCores();
+  const ativo = "#D97D54";
+  return (
+    <View
+      style={{
+        width: recolhido ? 80 : 248,
+        backgroundColor: cores.cartao,
+        borderRightWidth: 1,
+        borderRightColor: cores.borda,
+        paddingHorizontal: 12,
+        paddingTop: 24,
+        paddingBottom: 16,
+      }}
+    >
+      <View style={{ height: 56, justifyContent: "center", alignItems: recolhido ? "center" : "flex-start", paddingHorizontal: recolhido ? 0 : 12 }}>
+        <Text style={{ color: ativo, fontSize: recolhido ? 22 : 20, fontWeight: "800" }}>{recolhido ? "M" : "Maternamente"}</Text>
+      </View>
+      <View style={{ flex: 1, marginTop: 24 }}>
+        {state.routes.map((route: any, i: number) => {
+          const { options } = descriptors[route.key];
+          const focado = state.index === i;
+          const cor = focado ? ativo : cores.textoSuave;
+          const abrir = () => {
+            const ev = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
+            if (!focado && !ev.defaultPrevented) navigation.navigate(route.name, route.params);
+          };
+          return (
+            <TouchableOpacity
+              key={route.key}
+              onPress={abrir}
+              accessibilityRole="button"
+              accessibilityLabel={options.title}
+              accessibilityState={{ selected: focado }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: recolhido ? "center" : "flex-start",
+                height: 48,
+                borderRadius: 16,
+                marginBottom: 6,
+                paddingHorizontal: recolhido ? 0 : 12,
+                backgroundColor: focado ? cores.pessego : "transparent",
+              }}
+            >
+              {options.tabBarIcon?.({ focused: focado, color: cor, size: 22 })}
+              {!recolhido && <Text style={{ color: cor, fontSize: 15, fontWeight: "600", marginLeft: 4 }}>{options.title}</Text>}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <TouchableOpacity
+        onPress={alternar}
+        accessibilityRole="button"
+        accessibilityLabel={recolhido ? "Expandir menu" : "Recolher menu"}
+        style={{ height: 48, borderRadius: 16, flexDirection: "row", alignItems: "center", justifyContent: recolhido ? "center" : "flex-start", paddingHorizontal: recolhido ? 0 : 12 }}
+      >
+        <Ionicons name={recolhido ? "chevron-forward-circle-outline" : "chevron-back-circle-outline"} size={26} color={ativo} />
+        {!recolhido && <Text style={{ color: cores.textoSuave, fontSize: 14, fontWeight: "600", marginLeft: 12 }}>Recolher menu</Text>}
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function TabsLayout() {
   const cores = useCores();
   const activeColor = "#D97D54";
@@ -40,45 +105,29 @@ export default function TabsLayout() {
   const tabBgColor = cores.cartao;
   const { bottom } = useSafeAreaInsets();
   const desktop = useDesktop();
+  const [recolhido, setRecolhido] = useState(true); // começa recolhido (só ícones)
 
-  return (
+  return (
     <Tabs
+      // Desktop (web larga): menu lateral próprio, que pode ser recolhido; no celular, a barra padrão
+      tabBar={desktop ? (props: any) => <MenuLateral {...props} recolhido={recolhido} alternar={() => setRecolhido((v) => !v)} /> : undefined}
       screenOptions={{
         headerShown: false,
+        tabBarPosition: desktop ? "left" : "bottom", // define só a direção do layout (menu ao lado do conteúdo)
         tabBarActiveTintColor: activeColor,
         tabBarInactiveTintColor: inactiveColor,
-        tabBarActiveBackgroundColor: desktop ? cores.pessego : undefined,
-        // Desktop (web larga): a mesma barra vira menu lateral, com o nome do app no topo
-        tabBarPosition: desktop ? "left" : "bottom",
-        tabBarLabelPosition: desktop ? "beside-icon" : "below-icon",
-        tabBarBackground: desktop
-          ? () => <Text style={{ color: activeColor, fontSize: 20, fontWeight: "800", padding: 24 }}>Maternamente</Text>
-          : undefined,
-        tabBarStyle: desktop
-          ? {
-              backgroundColor: tabBgColor,
-              borderRightWidth: 1,
-              borderRightColor: cores.borda,
-              paddingTop: 80,
-              width: 248,
-              minWidth: 248,
-              elevation: 0,
-              boxShadow: "none",
-            }
-          : {
-              backgroundColor: tabBgColor,
-              borderTopWidth: 1,
-              borderTopColor: cores.borda,
-              height: 70 + bottom,
-              paddingBottom: 8 + bottom,
-              paddingTop: 8,
-              elevation: 0,
-              boxShadow: "none",
-            },
+        tabBarStyle: {
+          backgroundColor: tabBgColor,
+          borderTopWidth: 1,
+          borderTopColor: cores.borda,
+          height: 70 + bottom,
+          paddingBottom: 8 + bottom,
+          paddingTop: 8,
+          elevation: 0,
+          boxShadow: "none",
+        },
         tabBarIconStyle: { width: 56, height: 28 },
-        tabBarLabelStyle: desktop
-          ? { fontSize: 15, fontWeight: "600" }
-          : { fontSize: 12, fontWeight: "500", paddingBottom: 2 },
+        tabBarLabelStyle: { fontSize: 12, fontWeight: "500", paddingBottom: 2 },
       }}
     >
       {/* 1. Aba: Início */}
